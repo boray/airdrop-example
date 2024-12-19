@@ -6,7 +6,6 @@ import styles from "../styles/Home.module.css";
 import { PublicKey, Mina, NetworkId, Poseidon, Field } from "o1js";
 
 export default function Home() {
-  const [temp, setTemp] = useState("");
   const [nullifier, setNullifier] = useState("");
   const [txHash, setTxHash] = useState("");
 
@@ -21,21 +20,21 @@ export default function Home() {
     })();
   }, []);
   const handleStepOne = async () => {
-    let randomNullifier = Field.random();
+    let randomNullifier = Field.random(); // generate a random nullifier
     setNullifier(randomNullifier.toString());
     const publicKeyBase58: string = (
       await (window as any)?.mina?.requestAccounts()
-    )[0];
+    )[0]; // get the public key from the auro
     const publicKey = PublicKey.fromBase58(publicKeyBase58);
     let memo = Poseidon.hash([publicKey.x, randomNullifier])
       .toString()
-      .substring(0, 32);
+      .substring(0, 32); // hash x coordinate of the public key and the nullifier then take the first 32 characters # max memo length is 32
     const result = await (window as any)?.mina?.sendPayment({
       amount: 0.00001,
       to: publicKeyBase58,
       memo: memo,
       fee: 0.1,
-    });
+    }); // send a payment to the same wallet with the memo
     console.log(result.hash);
     setTxHash(result.hash);
     console.log("TX signed");
@@ -53,7 +52,7 @@ export default function Home() {
             "x-api-key": "MNwEtX0NzmYb61UDkoWGMT66g4JMHt",
           },
         }
-      );
+      );// get the transaction data from the blockberry api
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -68,7 +67,7 @@ export default function Home() {
           Field.from(nullifier),
         ])
           .toString()
-          .substring(0, 32);
+          .substring(0, 32); // recompute the memo and compare it with the memo in the transaction
       console.log("signature is valid:", is_valid);
     } catch (error) {
       console.error("Error in handleStepTwo:", error);
