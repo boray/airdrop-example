@@ -85,15 +85,15 @@ export default function Home() {
       <GradientBG>
         <main className={styles.main}>
           <div className={styles.grid}>
-            <div className={styles.card}>
+            <div className={styles.card} onClick={handleStepOne}> 
               <h2>Step One</h2>
-              <button className={styles.button} onClick={handleStepOne}>
+              <button className={styles.button}>
                 Send a tx in devnet
               </button>
             </div>
-            <div className={styles.card}>
+            <div className={styles.card} onClick={handleStepTwo}>
               <h2>Step Two</h2>
-              <button className={styles.button} onClick={handleStepTwo}>
+              <button className={styles.button}>
                 Verify the tx
               </button>
             </div>
