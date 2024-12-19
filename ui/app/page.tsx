@@ -1,31 +1,79 @@
-'use client';
-import Head from 'next/head';
-import Image from 'next/image';
-import { useEffect } from 'react';
-import GradientBG from '../components/GradientBG.js';
-import styles from '../styles/Home.module.css';
-import heroMinaLogo from '../public/assets/hero-mina-logo.svg';
-import arrowRightSmall from '../public/assets/arrow-right-small.svg';
+"use client";
+import Head from "next/head";
+import { useEffect, useState } from "react";
+import GradientBG from "../components/GradientBG.js";
+import styles from "../styles/Home.module.css";
+import { PublicKey, Mina, NetworkId, Poseidon, Field } from "o1js";
 
 export default function Home() {
+  const [temp, setTemp] = useState("");
+  const [nullifier, setNullifier] = useState("");
+  const [txHash, setTxHash] = useState("");
+
   useEffect(() => {
     (async () => {
-      const { Mina, PublicKey } = await import('o1js');
-      const { Add } = await import('../../contracts/build/src/');
-
-      // Update this to use the address (public key) for your zkApp account.
-      // To try it out, you can try this address for an example "Add" smart contract that we've deployed to
-      // Testnet B62qnTDEeYtBHBePA4yhCt4TCgDtA4L2CGvK7PirbJyX4pKH8bmtWe5.
-      const zkAppAddress = '';
-      // This should be removed once the zkAppAddress is updated.
-      if (!zkAppAddress) {
-        console.error(
-          'The following error is caused because the zkAppAddress has an empty string as the public key. Update the zkAppAddress with the public key for your zkApp account, or try this address for an example "Add" smart contract that we deployed to Testnet: B62qnTDEeYtBHBePA4yhCt4TCgDtA4L2CGvK7PirbJyX4pKH8bmtWe5'
-        );
-      }
-      //const zkApp = new Add(PublicKey.fromBase58(zkAppAddress))
+      const Network = Mina.Network({
+        archive: "https://api.minascan.io/archive/devnet/v1/graphql",
+        networkId: "testnet" as NetworkId,
+        mina: "https://api.minascan.io/node/devnet/v1/graphql",
+      });
+      Mina.setActiveInstance(Network);
     })();
   }, []);
+  const handleStepOne = async () => {
+    let randomNullifier = Field.random();
+    setNullifier(randomNullifier.toString());
+    const publicKeyBase58: string = (
+      await (window as any)?.mina?.requestAccounts()
+    )[0];
+    const publicKey = PublicKey.fromBase58(publicKeyBase58);
+    let memo = Poseidon.hash([publicKey.x, randomNullifier])
+      .toString()
+      .substring(0, 32);
+    const result = await (window as any)?.mina?.sendPayment({
+      amount: 0.00001,
+      to: publicKeyBase58,
+      memo: memo,
+      fee: 0.1,
+    });
+    console.log(result.hash);
+    setTxHash(result.hash);
+    console.log("TX signed");
+  };
+
+  const handleStepTwo = async () => {
+    console.log(txHash);
+    try {
+      const response = await fetch(
+        `https://api.blockberry.one/mina-devnet/v1/transactions/${txHash}`,
+        {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+            "x-api-key": "MNwEtX0NzmYb61UDkoWGMT66g4JMHt",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Transaction data:", data);
+      let is_valid =
+        data.memo ===
+        Poseidon.hash([
+          PublicKey.fromBase58(data.sourceAddress).x,
+          Field.from(nullifier),
+        ])
+          .toString()
+          .substring(0, 32);
+      console.log("signature is valid:", is_valid);
+    } catch (error) {
+      console.error("Error in handleStepTwo:", error);
+    }
+  };
 
   return (
     <>
@@ -36,111 +84,19 @@ export default function Home() {
       </Head>
       <GradientBG>
         <main className={styles.main}>
-          <div className={styles.center}>
-            <a
-              href="https://minaprotocol.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Image
-                className={styles.logo}
-                src={heroMinaLogo}
-                alt="Mina Logo"
-                width="191"
-                height="174"
-                priority
-              />
-            </a>
-            <p className={styles.tagline}>
-              built with
-              <code className={styles.code}> o1js</code>
-            </p>
-          </div>
-          <p className={styles.start}>
-            Get started by editing
-            <code className={styles.code}> app/page.tsx</code>
-          </p>
           <div className={styles.grid}>
-            <a
-              href="https://docs.minaprotocol.com/zkapps"
-              className={styles.card}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h2>
-                <span>DOCS</span>
-                <div>
-                  <Image
-                    src={arrowRightSmall}
-                    alt="Mina Logo"
-                    width={16}
-                    height={16}
-                    priority
-                  />
-                </div>
-              </h2>
-              <p>Explore zkApps, how to build one, and in-depth references</p>
-            </a>
-            <a
-              href="https://docs.minaprotocol.com/zkapps/tutorials/hello-world"
-              className={styles.card}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h2>
-                <span>TUTORIALS</span>
-                <div>
-                  <Image
-                    src={arrowRightSmall}
-                    alt="Mina Logo"
-                    width={16}
-                    height={16}
-                    priority
-                  />
-                </div>
-              </h2>
-              <p>Learn with step-by-step o1js tutorials</p>
-            </a>
-            <a
-              href="https://discord.gg/minaprotocol"
-              className={styles.card}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h2>
-                <span>QUESTIONS</span>
-                <div>
-                  <Image
-                    src={arrowRightSmall}
-                    alt="Mina Logo"
-                    width={16}
-                    height={16}
-                    priority
-                  />
-                </div>
-              </h2>
-              <p>Ask questions on our Discord server</p>
-            </a>
-            <a
-              href="https://docs.minaprotocol.com/zkapps/how-to-deploy-a-zkapp"
-              className={styles.card}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h2>
-                <span>DEPLOY</span>
-                <div>
-                  <Image
-                    src={arrowRightSmall}
-                    alt="Mina Logo"
-                    width={16}
-                    height={16}
-                    priority
-                  />
-                </div>
-              </h2>
-              <p>Deploy a zkApp to Testnet</p>
-            </a>
+            <div className={styles.card}>
+              <h2>Step One</h2>
+              <button className={styles.button} onClick={handleStepOne}>
+                Send a tx in devnet
+              </button>
+            </div>
+            <div className={styles.card}>
+              <h2>Step Two</h2>
+              <button className={styles.button} onClick={handleStepTwo}>
+                Verify the tx
+              </button>
+            </div>
           </div>
         </main>
       </GradientBG>
